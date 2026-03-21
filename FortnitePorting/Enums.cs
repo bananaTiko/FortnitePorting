@@ -321,6 +321,14 @@ public enum EThemeType
     [Description("Dark")]
     [Icon(MaterialIconKind.WeatherNight)]
     Dark,
+
+    [Description("Dracula")]
+    [Icon(MaterialIconKind.WeatherNight)]
+    Dracula,
+
+    [Description("Alucard")]
+    [Icon(MaterialIconKind.WeatherNight)]
+    Alucard,
     
     [Description("Royal Purple")]
     [Icon(MaterialIconKind.Crown)]
