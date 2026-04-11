@@ -243,10 +243,28 @@ public partial class CUE4ParseService : ObservableObject, IService
     
     private async Task InitializeOodle()
     {
-        var noodleFileFullName = Dependencies.NoodleFile.FullName;
-        if (!File.Exists(noodleFileFullName)) await OodleHelper.DownloadOodleDllAsync(ref noodleFileFullName);
-        await OodleHelper.InitializeAsync(noodleFileFullName);
-    }
+        var oodlePath = Dependencies.NoodleFile.FullName;
+
+        if (!File.Exists(oodlePath))
+        {
+            var downloadPath = oodlePath;
+            await OodleHelper.DownloadOodleDllAsync(ref downloadPath);
+
+            if (!string.IsNullOrWhiteSpace(downloadPath))
+            {
+                oodlePath = downloadPath;
+            }
+        }
+
+        try
+        {
+            await OodleHelper.InitializeAsync(oodlePath);
+        }
+        catch (DllNotFoundException e) when (OperatingSystem.IsLinux())
+        {
+            Log.Warning(e, "Failed to initialize Oodle using {Path}. Retrying using platform default resolution", oodlePath);
+            await OodleHelper.InitializeAsync();
+        }
     
     private async Task InitializeZlib()
     {
@@ -257,9 +275,25 @@ public partial class CUE4ParseService : ObservableObject, IService
     
     private async Task InitializeDetex()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            var detexSoPath = Path.Combine(App.DataFolder.FullName, "libdetex.so");
+            if (!File.Exists(detexSoPath))
+            {
+                TextureDecoder.UseAssetRipperTextureDecoder = true;
+                Log.Warning("Detex is unavailable on Linux (expected native library at {Path}). Some texture formats may fail to decode.", detexSoPath);
+                return;
+            }
+
+            DetexHelper.Initialize(detexSoPath);
+            TextureDecoder.UseAssetRipperTextureDecoder = true;
+            return;
+        }
+
         var detexPath = Path.Combine(App.DataFolder.FullName, DetexHelper.DLL_NAME);
         if (!File.Exists(detexPath)) await DetexHelper.LoadDllAsync(detexPath);
         DetexHelper.Initialize(detexPath);
+        TextureDecoder.UseAssetRipperTextureDecoder = false;
     }
     
     private async Task InitializeProvider()
