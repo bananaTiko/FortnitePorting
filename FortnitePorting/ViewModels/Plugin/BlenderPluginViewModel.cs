@@ -38,7 +38,20 @@ public partial class BlenderPluginViewModel : ViewModelBase
     {
         if (await App.BrowseFileDialog(fileTypes: Globals.BlenderFileType) is not { } blenderPath) return;
 
-        var blenderVersion = BlenderInstallation.GetVersion(blenderPath);
+        Version blenderVersion;
+        try
+        {
+            blenderVersion = BlenderInstallation.GetVersion(blenderPath);
+        }
+        catch (Exception e)
+        {
+            Info.Message("Blender Plugin",
+                $"Failed to detect Blender version from selected executable.\nPath: {blenderPath}\nError: {e.Message}",
+                InfoBarSeverity.Error,
+                autoClose: false);
+            return;
+        }
+
         if (Installations.Any(existing => existing.BlenderVersion == blenderVersion))
         {
             Info.Message("Blender Extension", $"The plugin for Blender {blenderVersion} has already been installed.", InfoBarSeverity.Warning);
@@ -145,7 +158,21 @@ public partial class BlenderPluginViewModel : ViewModelBase
     private static bool TryGetBlenderProcess(string path, [MaybeNullWhen(false)] out Process process)
     {
         var blenderProcesses = Process.GetProcessesByName("blender");
-        process = blenderProcesses.FirstOrDefault(process => process.MainModule is { } mainModule && mainModule.FileName.Equals(path.Replace("/", "\\")));
+        process = blenderProcesses.FirstOrDefault(process =>
+        {
+            try
+            {
+                if (process.MainModule is not { } mainModule) return false;
+
+                var selectedPath = Path.GetFullPath(path);
+                var processPath = Path.GetFullPath(mainModule.FileName);
+                return string.Equals(processPath, selectedPath, System.StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        });
         return process is not null;
     }
 }
