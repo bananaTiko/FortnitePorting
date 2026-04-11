@@ -51,8 +51,8 @@ public partial class TimeWasterViewModel : ViewModelBase
     private float TimeSinceLastProjectile;
     private int NextBossScore = BOSS_SCORE_DISTANCE;
     
-    private readonly WaveOutEvent AmbientOutput = new();
-    private readonly WaveOutEvent GameOutput = new();
+    private readonly WaveOutEvent? AmbientOutput = OperatingSystem.IsWindows() ? new WaveOutEvent() : null;
+    private readonly WaveOutEvent? GameOutput = OperatingSystem.IsWindows() ? new WaveOutEvent() : null;
     private static LoopStream AmbientBackground;
     private static LoopStream GameBackground;
     private static CachedSound Spawn;
@@ -154,10 +154,10 @@ public partial class TimeWasterViewModel : ViewModelBase
     {
         AudioSystem.Instance.Stop();
         Updaters.ForEach(updater => updater.Stop());
-        AmbientOutput.Stop();
-        AmbientOutput.Dispose();
-        GameOutput.Stop();
-        GameOutput.Dispose();
+        AmbientOutput?.Stop();
+        AmbientOutput?.Dispose();
+        GameOutput?.Stop();
+        GameOutput?.Dispose();
     }
 
 
@@ -460,9 +460,11 @@ public partial class TimeWasterViewModel : ViewModelBase
         return new Rotate3DTransform(x, y, z, centerX, centerY, centerZ, depth);
     }
     
-    private void InitAudio(WaveOutEvent waveOut, LoopStream wave)
+    private void InitAudio(WaveOutEvent? waveOut, LoopStream wave)
     {
+        if (waveOut is null) return;
         TaskService.Run(async () =>
+        
         {
             wave.Position = 0;
             waveOut.Init(wave);
