@@ -561,7 +561,16 @@ public partial class FilesViewModel : ViewModelBase
             }
             case UTexture texture:
             {
-                TexturePreviewWindow.Preview(name, texture);
+                try
+                {
+                    TexturePreviewWindow.Preview(name, texture);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Failed to preview texture {TextureName}", name);
+                    Info.Message("Texture Preview", $"Failed to decode texture {name}. This is often caused by missing Linux native texture codecs.", InfoBarSeverity.Warning, closeTime: 5);
+                }
+
                 break;
             }
             case UMaterial:
