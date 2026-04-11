@@ -157,8 +157,21 @@ public class AppService : IService
     
     public void LaunchSelected(string location)
     {
-        var argument = "/select, \"" + location +"\"";
-        Process.Start("explorer", argument);
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo
+            {
+                FileName = "explorer",
+                Arguments = $"\"{location}\"",
+                UseShellExecute = true
+            }
+            : new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                Arguments = $"\"{location}\"",
+                UseShellExecute = true
+            };
+
+        Process.Start(startInfo);
     }
     
     public async Task<string?> BrowseFolderDialog(string startLocation = "")
