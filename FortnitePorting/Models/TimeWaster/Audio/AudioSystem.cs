@@ -11,7 +11,7 @@ public class AudioSystem : IDisposable
     public int SampleRate;
     public int ChannelCount;
     
-    private readonly WaveOutEvent _outputDevice;
+    private readonly WaveOutEvent? _outputDevice;
     private readonly MixingSampleProvider _mixer;
 
     public AudioSystem(int sampleRate = 44100, int channelCount = 2)
@@ -24,10 +24,13 @@ public class AudioSystem : IDisposable
             ReadFully = true
         };
 
-        _outputDevice = new WaveOutEvent();
-        _outputDevice.DesiredLatency = 50;
-        _outputDevice.Init(_mixer);
-        _outputDevice.Play();
+        if (OperatingSystem.IsWindows())
+        {
+            _outputDevice = new WaveOutEvent();
+            _outputDevice.DesiredLatency = 50;
+            _outputDevice.Init(_mixer);
+            _outputDevice.Play();
+        }
     }
     
     public void PlaySound(ISampleProvider sampleProvider)
@@ -47,7 +50,7 @@ public class AudioSystem : IDisposable
     
     public void Dispose()
     {
-        _outputDevice.Dispose();
+        _outputDevice?.Dispose();
     }
 }
 
