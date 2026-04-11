@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using Avalonia.Platform;
+using CUE4Parse.Compression;
 using FortnitePorting.Shared.Extensions;
 
 namespace FortnitePorting.Services;
@@ -13,7 +14,7 @@ public class DependencyService : IService
     
     public readonly FileInfo BinkaDecoderFile = new(Path.Combine(App.DataFolder.FullName, "binka", "binkadec.exe"));
     public readonly FileInfo RadaDecoderFile = new(Path.Combine(App.DataFolder.FullName, "rada", "radadec.exe"));
-    public readonly FileInfo NoodleFile = new(Path.Combine(App.DataFolder.FullName, "noodle.dll"));
+    public readonly FileInfo NoodleFile = new(Path.Combine(App.DataFolder.FullName, OodleHelper.OodleFileName));
     public readonly FileInfo VgmStreamFile = new(Path.Combine(App.DataFolder.FullName, "vgmstream", "vgmstream-cli.exe"));
     
     public readonly DirectoryInfo VgmStreamFolder = new(Path.Combine(App.DataFolder.FullName, "vgmstream"));
@@ -22,10 +23,14 @@ public class DependencyService : IService
     {
         TaskService.Run(() =>
         {
-            EnsureResource("Assets/Dependencies/noodle.dll", NoodleFile);
-            EnsureResource("Assets/Dependencies/binkadec.exe", BinkaDecoderFile);
-            EnsureResource("Assets/Dependencies/radadec.exe", RadaDecoderFile);
-            EnsureVgmStream();
+            if (!OperatingSystem.IsLinux())
+            {
+                EnsureResource("Assets/Dependencies/noodle.dll", NoodleFile);
+                EnsureResource("Assets/Dependencies/binkadec.exe", BinkaDecoderFile);
+                EnsureResource("Assets/Dependencies/radadec.exe", RadaDecoderFile);
+                EnsureVgmStream();
+            }
+
             EnsureBlenderExtensions();
             EnsureUnrealPlugins();
             FinishedEnsuring = true;
