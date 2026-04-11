@@ -5,10 +5,11 @@ using CUE4Parse.GameTypes.FN.Assets.Exports.DataAssets;
 using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Exports.Actor;
 using CUE4Parse.UE4.Assets.Exports.Component;
+using CUE4Parse.UE4.Assets.Exports.Component.Lights;
 using CUE4Parse.UE4.Assets.Exports.Component.SkeletalMesh;
 using CUE4Parse.UE4.Assets.Exports.Component.StaticMesh;
+using CUE4Parse.UE4.Assets.Exports.Material;
 using CUE4Parse.UE4.Assets.Objects;
-using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Engine;
 using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.Utils;
@@ -16,7 +17,6 @@ using FortnitePorting.Exporting.Models;
 using FortnitePorting.Extensions;
 using FortnitePorting.Models.CUE4Parse;
 using FortnitePorting.Models.Fortnite;
-using FortnitePorting.Models.Unreal.Lights;
 using FortnitePorting.Shared.Extensions;
 using Serilog;
 
@@ -139,11 +139,11 @@ public partial class ExportContext
                     var exportMesh = MeshComponent(instanceComponent);
                     if (exportMesh is null) continue;
                     
-                    var instanceTransform = instanceComponent.GetAbsoluteTransform();
-                    
-                    exportMesh.Location = instanceTransform.Translation;
-                    exportMesh.Rotation = instanceTransform.Rotator();
-                    exportMesh.Scale = instanceTransform.Scale3D;
+                    // var instanceTransform = instanceComponent.GetAbsoluteTransform();
+                    //
+                    // exportMesh.Location = instanceTransform.Translation;
+                    // exportMesh.Rotation = instanceTransform.Rotator();
+                    // exportMesh.Scale = instanceTransform.Scale3D;
 
                     meshes.Add(exportMesh);
                 }
@@ -153,10 +153,9 @@ public partial class ExportContext
             {
                 var exportMesh = MeshComponent(staticMeshComponent) ?? new ExportMesh { IsEmpty = true };
                 exportMesh.Name = actor.Name;
-                
-                exportMesh.Location = staticMeshComponent.GetOrDefault("RelativeLocation", FVector.ZeroVector);
-                exportMesh.Rotation = staticMeshComponent.GetOrDefault("RelativeRotation", FRotator.ZeroRotator);
-                exportMesh.Scale = staticMeshComponent.GetOrDefault("RelativeScale3D", FVector.OneVector);
+                // exportMesh.Location = staticMeshComponent.GetOrDefault("RelativeLocation", FVector.ZeroVector);
+                // exportMesh.Rotation = staticMeshComponent.GetOrDefault("RelativeRotation", FRotator.ZeroRotator);
+                // exportMesh.Scale = staticMeshComponent.GetOrDefault("RelativeScale3D", FVector.OneVector);
 
                 foreach (var extraMesh in ExtraActorMeshes(actor))
                 {
@@ -200,10 +199,9 @@ public partial class ExportContext
             {
                 var exportMesh = MeshComponent(skeletalMeshComponent) ?? new ExportMesh { IsEmpty = true };
                 exportMesh.Name = actor.Name;
-                
-                exportMesh.Location = skeletalMeshComponent.GetOrDefault("RelativeLocation", FVector.ZeroVector);
-                exportMesh.Rotation = skeletalMeshComponent.GetOrDefault("RelativeRotation", FRotator.ZeroRotator);
-                exportMesh.Scale = skeletalMeshComponent.GetOrDefault("RelativeScale3D", FVector.OneVector);
+                // exportMesh.Location = skeletalMeshComponent.GetOrDefault("RelativeLocation", FVector.ZeroVector);
+                // exportMesh.Rotation = skeletalMeshComponent.GetOrDefault("RelativeRotation", FRotator.ZeroRotator);
+                // exportMesh.Scale = skeletalMeshComponent.GetOrDefault("RelativeScale3D", FVector.OneVector);
 
                 foreach (var extraMesh in ExtraActorMeshes(actor))
                 {
@@ -233,7 +231,7 @@ public partial class ExportContext
 
         }
 
-        if (Meta.WorldFlags.HasFlag(EWorldFlags.Landscape) && actor is ALandscapeProxy landscapeProxy && landscapeProxy.ExportType != "Landscape")
+        if (Meta.WorldFlags.HasFlag(EWorldFlags.Landscape) && actor is ALandscapeProxy landscapeProxy)// && landscapeProxy.ExportType != "Landscape")
         {
             var transform = landscapeProxy.GetAbsoluteTransformFromRootComponent();
             var landscapeProcessor = new LandscapeProcessor(landscapeProxy);
@@ -312,9 +310,9 @@ public partial class ExportContext
             {
                 objects.AddIfNotNull(MeshComponent(subStaticMeshComponent));
             }
-            else if (componentTemplate is ULightComponentBase pointLightComponent)
+            else if (Meta.Settings.ImportLights && componentTemplate is ULightComponentBase lightComponent)
             {
-                objects.AddIfNotNull(LightComponent(pointLightComponent));
+                objects.AddIfNotNull(LightComponent(lightComponent));
             }
         }
 
@@ -353,24 +351,66 @@ public partial class ExportContext
         lightComponent.GatherTemplateProperties();
         return lightComponent switch
         {
-            UPointLightComponent pointLightComponent => LightComponent(pointLightComponent),
+            USpotLightComponent spotLightComponent => SpotLightComponent(spotLightComponent),
+            UPointLightComponent pointLightComponent => PointLightComponent(pointLightComponent),
+            UDirectionalLightComponent directionalLightComponent => DirectionalLightComponent(directionalLightComponent),
             _ => null
         };
     }
 
-    public ExportLight LightComponent(UPointLightComponent pointLightComponent)
+    public ExportLight PointLightComponent(UPointLightComponent pointLightComponent)
     {
+        var transforms = pointLightComponent.GetAbsoluteTransform();
         return new ExportPointLight
         {
             Name = pointLightComponent.Name,
-            Location = pointLightComponent.RelativeLocation,
-            Rotation = pointLightComponent.RelativeRotation,
-            Scale = pointLightComponent.RelativeScale3D,
+            Location = transforms.Translation,
+            Rotation = transforms.Rotation.Rotator(),
+            RotationQuat = transforms.Rotation,
+            Scale = transforms.Scale3D,
             Intensity = pointLightComponent.Intensity,
             Color = pointLightComponent.LightColor.ToLinearColor(),
-            CastShadows = pointLightComponent.CastShadows,
+            CastShadows = pointLightComponent.CastShadows == 1,
             AttenuationRadius = pointLightComponent.AttenuationRadius,
             Radius = pointLightComponent.SourceRadius
+        };
+    }
+
+    public ExportLight SpotLightComponent(USpotLightComponent spotLightComponent)
+    {
+        var transforms = spotLightComponent.GetAbsoluteTransform();
+        var outerConeAngle = spotLightComponent.OuterConeAngle != 0 ? spotLightComponent.OuterConeAngle : 30f;
+        return new ExportSpotLight
+        {
+            Name = spotLightComponent.Name,
+            Location = transforms.Translation,
+            Rotation = transforms.Rotation.Rotator(),
+            RotationQuat = transforms.Rotation,
+            Scale = transforms.Scale3D,
+            Intensity = spotLightComponent.Intensity,
+            Color = spotLightComponent.LightColor.ToLinearColor(),
+            CastShadows = spotLightComponent.CastShadows == 1,
+            AttenuationRadius = spotLightComponent.AttenuationRadius,
+            Radius = spotLightComponent.SourceRadius,
+            OuterConeAngle = outerConeAngle,
+            InnerConeAngle = spotLightComponent.InnerConeAngle != 0 ? spotLightComponent.InnerConeAngle : outerConeAngle
+        };
+    }
+    
+    public ExportLight DirectionalLightComponent(UDirectionalLightComponent directional)
+    {
+        var transforms = directional.GetAbsoluteTransform();
+        return new ExportDirectionalLight
+        {
+            Name = directional.Name,
+            Location = transforms.Translation,
+            Rotation = transforms.Rotation.Rotator(),
+            RotationQuat = transforms.Rotation,
+            Scale = transforms.Scale3D,
+            Intensity = directional.Intensity,
+            Color = directional.LightColor.ToLinearColor(),
+            CastShadows = directional.CastShadows == 1,
+            Radius = directional.LightSourceAngle
         };
     }
 }

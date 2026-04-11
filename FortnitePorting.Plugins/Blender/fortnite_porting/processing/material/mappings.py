@@ -673,7 +673,8 @@ class EmissiveComponentMappings(MappingCollection):
 
     @classmethod
     def meets_criteria(self, material_data):
-        return get_param_multiple(material_data.get("ComponentMasks"), ["EmissiveComponentMask", "Emissive Component Mask"]) is not None
+        # TODO: add proper ComponentMask handling + EmissiveComponent to 3L Eye group
+        return get_param_multiple(material_data.get("ComponentMasks"), ["EmissiveComponentMask", "Emissive Component Mask"]) is not None # and not BaseEyeMappings.meets_criteria(material_data)
 
     textures=(
         SlotMapping("Emissive"),

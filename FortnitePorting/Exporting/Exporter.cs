@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CUE4Parse.GameTypes.FN.Assets.Exports.DataAssets;
 using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Exports.Animation;
+using CUE4Parse.UE4.Assets.Exports.CustomizableObject;
 using CUE4Parse.UE4.Assets.Exports.Engine.Font;
 using CUE4Parse.UE4.Assets.Exports.Material;
 using CUE4Parse.UE4.Assets.Exports.Rig;
@@ -16,6 +18,8 @@ using CUE4Parse.UE4.Objects.Engine;
 using CUE4Parse.UE4.Objects.Engine.Animation;
 using CUE4Parse.Utils;
 using FluentAvalonia.UI.Controls;
+using FortnitePorting.Application;
+using FortnitePorting.Export.Types;
 using FortnitePorting.Exporting.Models;
 using FortnitePorting.Exporting.Types;
 using FortnitePorting.Extensions;
@@ -107,6 +111,15 @@ public static class Exporter
                     Exports = exports
                 };
             
+                var data = JsonConvert.SerializeObject(exportData);
+
+                if (AppSettings.Developer.WriteExportToJSONFile)
+                {
+                    var jsonPath = Path.Combine(metaData.AssetsRoot, "ExportJSON", $"Export_{DateTime.Now:yyyy-MM-dd-hh-mm-ss}.json");
+                    Directory.CreateDirectory(jsonPath.SubstringBeforeLast("/"));
+                    await File.WriteAllTextAsync(jsonPath, data);
+                }
+                
                 await ExportClient.SendExportAsync(serverType, exportData);
             }
 
@@ -175,6 +188,7 @@ public static class Exporter
             UDNAAsset => EExportType.PoseAsset,
             UMaterialInstance => EExportType.MaterialInstance,
             UMaterial => EExportType.Material,
+            UCustomizableObject => EExportType.Mutable,
             _ => EExportType.None
         };
 
@@ -247,6 +261,7 @@ public static class Exporter
             EPrimitiveExportType.Font => new FontExport(displayName, asset, exportType, metaData),
             EPrimitiveExportType.PoseAsset => new PoseAssetExport(displayName, asset, exportType, metaData),
             EPrimitiveExportType.Material => new MaterialExport(displayName, asset, exportType, metaData),
+            EPrimitiveExportType.Mutable => new MutableExport(displayName, asset, styles, exportType, metaData),
             _ => throw new NotImplementedException($"Exporting {primitiveType} assets is not supported yet.")
         };
         

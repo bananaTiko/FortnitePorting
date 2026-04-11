@@ -17,6 +17,7 @@ using CUE4Parse.UE4.AssetRegistry.Objects;
 using CUE4Parse.UE4.Assets;
 using CUE4Parse.UE4.Assets.Exports.Animation;
 using CUE4Parse.UE4.Assets.Exports.Engine;
+using CUE4Parse.UE4.Assets.Exports.Material;
 using CUE4Parse.UE4.IO;
 using CUE4Parse.UE4.IO.OnDemand;
 using CUE4Parse.UE4.Objects.Core.i18N;
@@ -176,6 +177,10 @@ public partial class CUE4ParseService : ObservableObject, IService
         
         await LoadMappings();
         
+#if DEBUG
+        //MaterialPreviewWindow.Preview(await Provider.LoadPackageObjectAsync<UMaterial>("Engine/Content/EngineMaterials/WorldGridMaterial"));
+#endif
+        
         await LoadAssetRegistries();
 
         UpdateStatus("Loading Required Assets");
@@ -238,20 +243,15 @@ public partial class CUE4ParseService : ObservableObject, IService
     
     private async Task InitializeOodle()
     {
-        if (!File.Exists(Dependencies.NoodleFile.FullName))
-        {
-            var downloadPath = Dependencies.NoodleFile.FullName;
-            await OodleHelper.DownloadOodleDllAsync(ref downloadPath);
-        }
-        
-        await OodleHelper.InitializeAsync(Dependencies.NoodleFile.FullName);
+        var noodleFileFullName = Dependencies.NoodleFile.FullName;
+        if (!File.Exists(noodleFileFullName)) await OodleHelper.DownloadOodleDllAsync(ref noodleFileFullName);
+        await OodleHelper.InitializeAsync(noodleFileFullName);
     }
     
     private async Task InitializeZlib()
     {
         var zlibPath = Path.Combine(App.DataFolder.FullName, ZlibHelper.DLL_NAME);
         if (!File.Exists(zlibPath)) await ZlibHelper.DownloadDllAsync(zlibPath);
-        
         await ZlibHelper.InitializeAsync(zlibPath);
     }
     
@@ -320,7 +320,7 @@ public partial class CUE4ParseService : ObservableObject, IService
                 await Api.DownloadFileAsync($"https://download.epicgames.com/{tocPath}", onDemandFile.FullName);
             }
             
-            await Provider.RegisterVfsAsync(new FOnDemandTocReader(onDemandFile.FullName));
+            await Provider.RegisterVfsAsync(new IoChunkToc(onDemandFile.FullName, Provider.Versions));
             await Provider.MountAsync();
         }
         catch (Exception e)
@@ -408,6 +408,7 @@ public partial class CUE4ParseService : ObservableObject, IService
     
     private async Task LoadLocalExtraKeys()
     {
+        var invalidKeys = AppSettings.Installation.CurrentProfile.ExtraKeys.ToList();
         foreach (var vfs in Provider.UnloadedVfs.ToArray())
         {
             foreach (var extraKey in AppSettings.Installation.CurrentProfile.ExtraKeys)
@@ -416,9 +417,17 @@ public partial class CUE4ParseService : ObservableObject, IService
                 if (!vfs.TestAesKey(extraKey.EncryptionKey)) continue;
                         
                 Log.Information("Submitting Local Extra Key {Key} with GUID {Guid} for {FileName}", extraKey.EncryptionKey, vfs.EncryptionKeyGuid, vfs.Name);
-                await Provider.SubmitKeyAsync(vfs.EncryptionKeyGuid, extraKey.EncryptionKey);
+                var paksMounted = await Provider.SubmitKeyAsync(vfs.EncryptionKeyGuid, extraKey.EncryptionKey);
+                if (paksMounted > 0) invalidKeys.Remove(extraKey);
             }
         }
+
+        if (AppSettings.Installation.CurrentProfile.FortniteVersion == EFortniteVersion.Custom || invalidKeys.Count == 0) return;
+        
+        Log.Information("Removing Unused Keys:");
+        invalidKeys.ForEach(key => Log.Information("{0}", key.KeyString));
+
+        await AppSettings.Installation.CurrentProfile.RemoveEncryptionKeys(invalidKeys.ToList());
     }
     
     private async Task LoadMappings()

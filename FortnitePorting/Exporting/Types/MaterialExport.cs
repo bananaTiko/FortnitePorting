@@ -12,6 +12,11 @@ public class MaterialExport : BaseExport
     
     public MaterialExport(string name, UObject asset, EExportType exportType, ExportDataMeta metaData) : base(name, exportType, metaData)
     {
+        if (exportType == EExportType.Wrap && asset.TryGetValue(out UMaterialInterface wrapMaterial, "ItemWrapMaterial"))
+        {
+            Materials.AddIfNotNull(Exporter.Material(wrapMaterial, 0));
+            return;
+        }
         Materials.AddIfNotNull(Exporter.Material((UMaterialInterface)asset, 0));
     }
 }

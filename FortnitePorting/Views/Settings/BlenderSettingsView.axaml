@@ -300,6 +300,12 @@
                                     <ToggleSwitch IsChecked="{Binding ImportInstancedFoliage}"/>
                                 </controls:SettingsItem.Footer>
                             </controls:SettingsItem>
+                            <controls:SettingsItem Title="Import Lights" 
+                                                   Description="Whether or not to import lights.">
+                                <controls:SettingsItem.Footer>
+                                    <ToggleSwitch IsChecked="{Binding ImportLights}"/>
+                                </controls:SettingsItem.Footer>
+                            </controls:SettingsItem>
                         </StackPanel>
                     </sidebar:SidebarItemButton.Tag>
                 </sidebar:SidebarItemButton>

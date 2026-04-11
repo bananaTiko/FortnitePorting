@@ -21,7 +21,9 @@ public partial class SettingsService : ObservableObject, IService
     public bool ShouldSaveOnExit = true;
     
     public static readonly DirectoryInfo DirectoryPath = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FortnitePorting"));
-    public static readonly FileInfo FilePath = new(Path.Combine(DirectoryPath.FullName, "AppSettingsV4.json"));
+    public static readonly FileInfo FilePath = new(Path.Combine(DirectoryPath.FullName, "AppSettingsV4-Mutable.json"));
+    public static readonly FileInfo V3FilePath = new(Path.Combine(DirectoryPath.FullName, "AppSettingsV3-Mutable.json"));
+    public static readonly FileInfo MainFilePath = new(Path.Combine(DirectoryPath.FullName, "AppSettingsV4.json"));
 
     public SettingsService()
     {
@@ -30,11 +32,13 @@ public partial class SettingsService : ObservableObject, IService
     
     public void Load()
     {
-        if (!FilePath.Exists) return;
+        // AppSettings priority loading to avoid compatibility issues
+        var settingsFilePath = FilePath.Exists ? FilePath : V3FilePath.Exists ? V3FilePath : MainFilePath.Exists ? MainFilePath : null;
+        if (settingsFilePath is not { Exists: true }) return;
         
         try
         {
-            var settings = JsonConvert.DeserializeObject<SettingsService>(File.ReadAllText(FilePath.FullName));
+            var settings = JsonConvert.DeserializeObject<SettingsService>(File.ReadAllText(settingsFilePath.FullName));
             if (settings is null) return;
 
             foreach (var property in settings.GetType().GetProperties())

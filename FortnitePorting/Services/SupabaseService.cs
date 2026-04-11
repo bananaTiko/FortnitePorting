@@ -159,7 +159,10 @@ public partial class SupabaseService : ObservableObject, IService
 
     public async Task PostExports(IEnumerable<string> objectPaths)
     {
-        await Api.FortnitePorting.PostExports(objectPaths);
+        if (AppSettings.Installation.CurrentProfile.SendExports)
+        {
+            await Api.FortnitePorting.PostExports(objectPaths);
+        }
     }
 
     private async Task OnLoggedIn()

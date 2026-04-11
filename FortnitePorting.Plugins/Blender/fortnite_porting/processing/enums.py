@@ -33,6 +33,12 @@ class EExportType(IntEnum):
     LOADING_SCREEN = auto()
     EMOTE = auto()
     SIDEKICK = auto()
+    WRAP = auto()
+    KICKS = auto()
+    
+    # Rocket Racing
+    VEHICLE_BODY = auto()
+    VEHICLE_WHEEL = auto()
     
     # CREATIVE
     PROP = auto()
@@ -75,6 +81,9 @@ class EExportType(IntEnum):
     
     # UTILITY
     TASTY_RIG = auto()
+    
+    # EXPERIMENTAL
+    MUTABLE = auto()
 
 
 class EPrimitiveExportType(IntEnum):
@@ -88,6 +97,9 @@ class EPrimitiveExportType(IntEnum):
 
     # UTILITY
     TASTY_RIG = auto()
+    
+    # EXPERIMENTAL
+    MUTABLE = auto()
 
 
 class EFortCustomPartType(IntEnum):

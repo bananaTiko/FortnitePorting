@@ -76,7 +76,7 @@ public partial class ExportContext
             MaterialNameToSwap = overrideData.GetOrDefault<FSoftObjectPath>("MaterialToSwap").AssetPathName.Text.SubstringAfterLast(".")
         };
     }
-    
+
     public List<ExportOverrideParameters> OverrideParameters(FStructFallback overrideData)
     {
         var materialsToAlter = new List<FSoftObjectPath>();
@@ -94,16 +94,15 @@ public partial class ExportContext
         {
             var exportParams = new ExportOverrideParameters();
             AccumulateParameters(overrideData, ref exportParams);
-
+            
             exportParams.MaterialNameToAlter = materialToAlter.AssetPathName.Text.SubstringAfterLast(".");
             exportParams.Hash = exportParams.GetHashCode();
             exportParametersSet.Add(exportParams);
         }
 
-       
         return exportParametersSet;
     }
-    
+
 
     public List<ExportOverrideParameters>? OverrideColors(AssetColorStyleData colorStyle)
     {

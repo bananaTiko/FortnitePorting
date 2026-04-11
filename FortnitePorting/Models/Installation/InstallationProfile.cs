@@ -1,10 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CUE4Parse.UE4.Versions;
 using CUE4Parse.Utils;
+using DynamicData;
 using FluentAvalonia.UI.Controls;
 using FortnitePorting.Models.CUE4Parse;
 using FortnitePorting.Validators;
@@ -30,7 +34,7 @@ public partial class InstallationProfile : ObservableValidator
     [ArchiveDirectory(canValidateProperty: nameof(ArchiveDirectoryEnabled))]
     [ObservableProperty] private string _archiveDirectory = string.Empty;
     
-    [ObservableProperty] private EGame _unrealVersion = EGame.GAME_UE5_LATEST;
+    [ObservableProperty] private EGame _unrealVersion = EGame.GAME_UE5_8;
     
     [NotifyDataErrorInfo]
     [EncryptionKey(canValidateProperty: nameof(EncryptionKeyEnabled))]
@@ -51,7 +55,9 @@ public partial class InstallationProfile : ObservableValidator
     [ObservableProperty] private ELanguage _gameLanguage = ELanguage.English;
     [ObservableProperty] private bool _useTextureStreaming = true;
     [ObservableProperty] private bool _loadInstalledBundles = true;
-    [ObservableProperty] private bool _loadNaniteData = true;
+    [ObservableProperty] private bool _loadNaniteData;
+    
+    [ObservableProperty] private bool _sendExports = true;
 
     [ObservableProperty] private bool _isSelected;
 
@@ -59,6 +65,7 @@ public partial class InstallationProfile : ObservableValidator
     [JsonIgnore] public bool ArchiveDirectoryEnabled => FortniteVersion is not EFortniteVersion.LatestOnDemand;
     [JsonIgnore] public bool UnrealVersionEnabled => IsCustom;
     [JsonIgnore] public bool EncryptionKeyEnabled => IsCustom;
+    [JsonIgnore] public bool FetchMapKeyEnabled => FortniteVersion is EFortniteVersion.LatestInstalled;
     [JsonIgnore] public bool MappingsFileEnabled => IsCustom;
     [JsonIgnore] public bool TextureStreamingEnabled => FortniteVersion is EFortniteVersion.LatestInstalled;
     [JsonIgnore] public bool LoadInstalledBundlesEnabled => FortniteVersion is EFortniteVersion.LatestInstalled;
@@ -137,6 +144,12 @@ public partial class InstallationProfile : ObservableValidator
         var selectedIndexToRemove = SelectedExtraKeyIndex;
         ExtraKeys.RemoveAt(selectedIndexToRemove);
         SelectedExtraKeyIndex = selectedIndexToRemove == 0 ? 0 : selectedIndexToRemove - 1;
+    }
+    
+    public async Task RemoveEncryptionKeys(List<FileEncryptionKey> keysToRemove)
+    {
+        ExtraKeys.RemoveMany(keysToRemove);
+        SelectedExtraKeyIndex = 0;
     }
 
     public override string ToString()

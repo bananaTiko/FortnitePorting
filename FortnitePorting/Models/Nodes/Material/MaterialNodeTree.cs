@@ -18,7 +18,6 @@ using CUE4Parse.UE4.Objects.UObject;
 using DynamicData;
 using FluentAvalonia.UI.Controls;
 using FortnitePorting.Extensions;
-using FortnitePorting.Models.Unreal.Material;
 using Serilog;
 using ColorSpectrumShape = Avalonia.Controls.ColorSpectrumShape;
 
@@ -341,22 +340,22 @@ public class MaterialNodeTree : NodeTree
                 node.Package = materialFunction;
                 node.Label = materialFunction?.ResolvedObject?.Name.Text ?? "Material Function";
                 
-                node.Inputs.Clear();
-                var inputs = expression.GetOrDefault<FStructFallback[]>("FunctionInputs", []);
-                foreach (var functionInput in inputs)
-                {
-                    var expressionInput = functionInput.Get<FExpressionInput>("Input");
-                    AddInput(ref node, expressionInput);
-                }
-                
                 node.Outputs.Clear();
                 var outputs = expression.GetOrDefault<FStructFallback[]>("FunctionOutputs", []);
                 foreach (var functionOutput in outputs)
                 {
                     var output = functionOutput.Get<FStructFallback>("Output");
                     var outputName = output.Get<FName>("OutputName");
-
+                
                     node.AddOutput(outputName.Text);
+                }
+                
+                node.Inputs.Clear();
+                var inputs = expression.GetOrDefault<FStructFallback[]>("FunctionInputs", []);
+                foreach (var functionInput in inputs)
+                {
+                    var expressionInput = functionInput.Get<FExpressionInput>("Input");
+                    AddInput(ref node, expressionInput);
                 }
                 
                 break;

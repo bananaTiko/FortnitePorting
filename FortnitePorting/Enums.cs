@@ -125,7 +125,20 @@ public enum EExportType
     
     [Description("Sidekicks"), Export(EPrimitiveExportType.Mesh)]
     SideKick,
+    
+    [Description("Wraps"), Export(EPrimitiveExportType.Material)]
+    Wrap,
 
+    [Description("Kicks"), Export(EPrimitiveExportType.Mesh)]
+    Kicks,
+    
+    // Rocket Racing
+
+    [Description("Bodies"), Export(EPrimitiveExportType.Mutable)]
+    VehicleBody,
+
+    [Description("Wheels"), Export(EPrimitiveExportType.Mutable)]
+    VehicleWheel,
     
     // CREATIVE
 
@@ -174,7 +187,7 @@ public enum EExportType
     
     // LEGO
     
-    [Description("Outfits"), Export(EPrimitiveExportType.Mesh)]
+    [Description("Outfits"), Export(EPrimitiveExportType.Mutable)]
     LegoOutfit,
     
     [Description("Emotes"), Export(EPrimitiveExportType.Animation)]
@@ -222,7 +235,11 @@ public enum EExportType
     
     // UTILITY
     [Description("Tasty Rig"), Export(EPrimitiveExportType.TastyRig)]
-    TastyRig
+    TastyRig,
+    
+    // EXPERIMENTAL
+    [Description("Mutable"), Export(EPrimitiveExportType.Mutable)]
+    Mutable
 }
 
 public enum EPrimitiveExportType
@@ -250,7 +267,11 @@ public enum EPrimitiveExportType
     
     // UTILITY
     [Description("Tasty Rig")]
-    TastyRig
+    TastyRig,
+    
+    // EXPERIMENTAL
+    [Description("Mutable")]
+    Mutable
 }
 
 public enum EAssetSortType
@@ -333,4 +354,8 @@ public enum EThemeType
     [Description("Mica")]
     [Icon(MaterialIconKind.CircleOpacity)]
     Mica,
+    
+    [Description("ChippyCut")]
+    [Icon(MaterialIconKind.Terminal)]
+    ChippyCut,
 }

@@ -130,7 +130,7 @@ public partial class ExportContext
         if (exportMesh is null) return null;
         
         SetMeshComponentTransforms(exportMesh, meshComponent);
-
+        
         var overrideMaterials = meshComponent.GetOrDefault("OverrideMaterials", Array.Empty<UMaterialInterface?>());
         for (var idx = 0; idx < overrideMaterials.Length; idx++)
         {
@@ -152,7 +152,7 @@ public partial class ExportContext
         if (exportMesh is null) return null;
         
         SetMeshComponentTransforms(exportMesh, meshComponent);
-
+        
         var overrideMaterials = meshComponent.GetOrDefault("OverrideMaterials", Array.Empty<UMaterialInterface?>());
         for (var idx = 0; idx < overrideMaterials.Length; idx++)
         {
@@ -175,9 +175,9 @@ public partial class ExportContext
         var mesh = instanceComponent.GetOrDefault<UStaticMesh?>("StaticMesh");
         var exportMesh = Mesh(mesh);
         if (exportMesh is null) return null;
-                
+        
         SetMeshComponentTransforms(exportMesh, instanceComponent);
-
+                
         foreach (var instance in instanceComponent.PerInstanceSMData ?? [])
         {
             exportMesh.Instances.Add(new ExportTransform(instance.TransformData));

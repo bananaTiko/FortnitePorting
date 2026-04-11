@@ -18,6 +18,7 @@ using FortnitePorting.Exporting.Models;
 using FortnitePorting.Extensions;
 using FortnitePorting.Models.Fortnite;
 using FortnitePorting.Shared.Extensions;
+using Serilog;
 
 namespace FortnitePorting.Exporting.Context;
 
@@ -117,19 +118,32 @@ public partial class ExportContext
                     var masterSkeletalMesh = masterSkeletalMeshes
                         .Select(index => index.LoadOrDefault<USkeletalMesh>())
                         .FirstOrDefault(mesh => mesh is not null);
-                    
-                    if (masterSkeletalMesh is null) break;
 
-                    var meta = new ExportMasterSkeletonMeta
+                    if (masterSkeletalMesh is not null)
                     {
-                        MasterSkeletalMesh = Mesh(masterSkeletalMesh)
-                    };
-                    exportPart.Meta = meta;
+                        var meta = new ExportMasterSkeletonMeta
+                        {
+                            MasterSkeletalMesh = Mesh(masterSkeletalMesh)
+                        };
+                        exportPart.Meta = meta;
+                        break;
+                    }
+
+                    if (additionalData.TryGetValue(out UAnimBlueprintGeneratedClass animBlueprintPet, "AnimClass")
+                        && animBlueprintPet.ClassDefaultObject != null
+                        && animBlueprintPet.ClassDefaultObject.TryLoad(out var animBlueprintPetData)
+                        && animBlueprintPetData.TryGetValue(out FStructFallback poseAssetNode, "AnimGraphNode_PoseBlendNode"))
+                    {
+                        var metaPet = new ExportHeadMeta();
+                        metaPet.PoseAsset = Export(poseAssetNode.Get<UPoseAsset>("PoseAsset"));
+                        exportPart.Meta = metaPet;
+                    }
+
                     break;
                 }
             }
         }
-        
+
         return exportPart;
     }
     
@@ -153,6 +167,8 @@ public partial class ExportContext
                 slot++;
             }
         }
+        
+        exportWeapons.AddRangeIfNotNull(GetAttachmentMeshes(weaponDefinition));
 
         return exportWeapons;
     }
@@ -211,6 +227,37 @@ public partial class ExportContext
         exportWeapons.AddRangeIfNotNull(weaponDefinition.GetDataListItems<UObject>("PickupSkeletalMesh", "PickupStaticMesh"));
 
         return exportWeapons;
+    }
+    
+    private List<ExportMesh> GetAttachmentMeshes(UObject weaponDefinition)
+    {
+        var attachmentMeshes = new List<ExportMesh>();
+
+        var modSlots = weaponDefinition.GetDataListItem<FStructFallback[]>("WeaponModSlots");
+        if (modSlots is not { Length: > 0 }) return attachmentMeshes;
+        
+        foreach (var modSlot in modSlots)
+        {
+            try
+            {
+                if (!modSlot.TryGetValue(out UObject modDefinition, "WeaponMod")) continue;
+                if (modDefinition is UBlueprintGeneratedClass blueprintGeneratedClass)
+                {
+                    attachmentMeshes.AddRangeIfNotNull(Blueprint(blueprintGeneratedClass)
+                        .Where(obj => obj is ExportMesh).Cast<ExportMesh>().ToList());
+                }
+                else
+                {
+                    attachmentMeshes.AddIfNotNull(Mesh(modDefinition));
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Warning("Exception thrown loading weapon mods for: {0}", weaponDefinition.Name);
+            }
+        }
+
+        return attachmentMeshes;
     }
     
     public ExportTextureData? TextureData(UBuildingTextureData? textureData, int index = 0)
@@ -320,7 +367,7 @@ public partial class ExportContext
             {
                 var exportDoubleDoorMesh = Mesh(doubleDoorMesh)!;
                 if (exportDoubleDoorMesh == null) return extraMeshes;
-
+                
                 exportDoubleDoorMesh.Location = doorOffset;
                 exportDoubleDoorMesh.Rotation = doorRotation;
                 extraMeshes.AddIfNotNull(exportDoubleDoorMesh);
