@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -39,13 +40,19 @@ public partial class BlenderInstallation(string blenderExecutablePath) : Observa
     [JsonIgnore]
     public Version BlenderVersion => GetVersion(BlenderPath);
 
-    private string StartupPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Blender Foundation",
-        "Blender",
-        BlenderVersion.ToString(2),
-        "scripts",
-        "startup");
-    
+    private string StartupPath => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Blender Foundation",
+            "Blender",
+            BlenderVersion.ToString(2),
+            "scripts",
+            "startup")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "blender",
+            BlenderVersion.ToString(2),
+            "scripts",
+            "startup");
+
     private string ManifestPath => Path.Combine(StartupPath,
         "fortnite_porting",
         "blender_manifest.toml");
@@ -55,7 +62,59 @@ public partial class BlenderInstallation(string blenderExecutablePath) : Observa
 
     public static Version GetVersion(string blenderPath)
     {
-        return new Version(FileVersionInfo.GetVersionInfo(blenderPath).ProductVersion!);
+        if (!File.Exists(blenderPath))
+            throw new FileNotFoundException("The selected Blender executable does not exist.", blenderPath);
+
+        if (TryGetVersionFromProcess(blenderPath, out var processVersion))
+            return processVersion;
+
+        if (TryParseVersion(FileVersionInfo.GetVersionInfo(blenderPath).ProductVersion, out var productVersion))
+            return productVersion;
+
+        if (TryParseVersion(FileVersionInfo.GetVersionInfo(blenderPath).FileVersion, out var fileVersion))
+            return fileVersion;
+
+        throw new InvalidOperationException($"Failed to determine Blender version from executable: {blenderPath}");
+    }
+
+    private static bool TryGetVersionFromProcess(string blenderPath, out Version version)
+    {
+        version = null!;
+
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = blenderPath,
+                Arguments = "--version",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+
+            if (process is null) return false;
+
+            var stdout = process.StandardOutput.ReadLine();
+            process.WaitForExit(3000);
+
+            return TryParseVersion(stdout, out version);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseVersion(string? input, out Version version)
+    {
+        version = null!;
+        if (string.IsNullOrWhiteSpace(input)) return false;
+
+        var match = Regex.Match(input, @"\d+\.\d+(?:\.\d+)?");
+        if (!match.Success) return false;
+
+        return Version.TryParse(match.Value, out version);
     }
 
     public bool SyncExtensionVersion()
@@ -83,6 +142,8 @@ public partial class BlenderInstallation(string blenderExecutablePath) : Observa
     {
         Status = EPluginStatusType.Modifying;
         
+        Directory.CreateDirectory(StartupPath);
+        
         MiscExtensions.Copy(Path.Combine(PluginWorkingDirectory.FullName, "fortnite_porting"), Path.Combine(StartupPath, "fortnite_porting"));
 
         var didSyncProperly = SyncExtensionVersion();
@@ -104,8 +165,10 @@ public partial class BlenderInstallation(string blenderExecutablePath) : Observa
     public void Uninstall()
     {
         Status = EPluginStatusType.Modifying;
-        
-        Directory.Delete(Path.Combine(StartupPath, "fortnite_porting"), true);
+
+        var installPath = Path.Combine(StartupPath, "fortnite_porting");
+        if (Directory.Exists(installPath))
+            Directory.Delete(installPath, true);
     }
 
     public async Task Launch()
