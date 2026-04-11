@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia.Media.Imaging;
@@ -7,6 +8,7 @@ using CUE4Parse_Conversion.Textures;
 using CUE4Parse.UE4.Assets.Exports.Texture;
 using DynamicData;
 using FortnitePorting.Extensions;
+using Serilog;
 
 namespace FortnitePorting.Models.Viewers;
 
@@ -61,17 +63,26 @@ public partial class TextureContainer : ObservableObject
 
     private void UpdateTextureInfo()
     {
-        FTexture2DMipMap? mip = null;
-        if (Texture.PlatformData.Mips.Length > 0)
-            mip = Texture.PlatformData.Mips[TargetMipIndex];
+        try
+        {
+            FTexture2DMipMap? mip = null;
+            if (Texture.PlatformData.Mips.Length > 0)
+                mip = Texture.PlatformData.Mips[TargetMipIndex];
 
-        var bitmap = Texture is UTexture2DArray ? UpdateTexture2DArray(mip) : UpdateTexture2D(mip);
-        
-        if (bitmap is null) return;
+            var bitmap = Texture is UTexture2DArray ? UpdateTexture2DArray(mip) : UpdateTexture2D(mip);
+            if (bitmap is null)
+            {
+                return;
+            }
 
-        if (Texture is UTextureCube) bitmap = bitmap.ToPanorama();
+            if (Texture is UTextureCube) bitmap = bitmap.ToPanorama();
 
-        OriginalBitmap = bitmap.ToWriteableBitmap();
+            OriginalBitmap = bitmap.ToWriteableBitmap();
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Failed to decode texture {TextureName}", TextureName);
+        }
 
     }
 
@@ -90,13 +101,18 @@ public partial class TextureContainer : ObservableObject
 
     private unsafe void UpdateBitmap()
     {
+        if (OriginalBitmap is null)
+        {
+            return;
+        }
+
         DisplayBitmap = new WriteableBitmap(OriginalBitmap.PixelSize, OriginalBitmap.Dpi, OriginalBitmap.Format, OriginalBitmap.AlphaFormat);
-        
+
         var framebuffer = DisplayBitmap.Lock();
         OriginalBitmap.CopyPixels(framebuffer, AlphaFormat.Unpremul);
 
         var enabledColorChannelCount = new[] { ShowRedChannel, ShowGreenChannel, ShowBlueChannel }.Count(boolean => boolean);
-        
+
         var ptr = (byte*) framebuffer.Address;
         for (var x = 0; x < DisplayBitmap.PixelSize.Width; x++)
         {
@@ -108,7 +124,7 @@ public partial class TextureContainer : ObservableObject
                 var red = ptr[colorIndex + 2];
                 var green = ptr[colorIndex + 1];
                 var blue = ptr[colorIndex + 0];
-                
+
                 switch (enabledColorChannelCount)
                 {
                     case 1:
@@ -120,7 +136,7 @@ public partial class TextureContainer : ObservableObject
                             targetColor = green;
                         else if (ShowBlueChannel) 
                             targetColor = blue;
-                    
+
                         for (var colPtr = 0; colPtr < 3; colPtr++)
                         {
                             ptr[colorIndex + colPtr] = targetColor;
@@ -150,9 +166,9 @@ public partial class TextureContainer : ObservableObject
                     }
                 }
             }
-           
+
         }
-        
+
         framebuffer.Dispose();
     }
     
