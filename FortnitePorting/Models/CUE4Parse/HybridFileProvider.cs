@@ -10,6 +10,7 @@ using CUE4Parse.UE4.Versions;
 using CUE4Parse.Utils;
 using EpicManifestParser.UE;
 using FortnitePorting.ViewModels.Settings;
+using Serilog;
 
 namespace FortnitePorting.Models.CUE4Parse;
 
@@ -60,14 +61,28 @@ public class HybridFileProvider : AbstractVfsFileProvider
             var extension = file.Extension.SubstringAfter('.').ToLower();
             if (extension is "pak" or "utoc")
             {
-                RegisterVfs(file.FullName, [ file.OpenRead() ], it => new FStreamArchive(it, File.OpenRead(it), Versions));
+                try
+                {
+                    RegisterVfs(file.FullName, [file.OpenRead()], it => new FStreamArchive(it, File.OpenRead(it), Versions));
+                }
+                catch (Exception e)
+                {
+                    Log.Warning(e, "Failed to register VFS file {FilePath}. Skipping file.", file.FullName);
+                }
             }
 
             if (extension is "uondemandtoc")
             {
-                var archive = new FByteArchive(file.FullName, File.ReadAllBytes(file.FullName), Versions);
-                var ioChunkToc = new IoChunkToc(archive);
-                RegisterVfs(ioChunkToc, OnDemandOptions);
+                try
+                {
+                    var archive = new FByteArchive(file.FullName, File.ReadAllBytes(file.FullName), Versions);
+                    var ioChunkToc = new FOnDemandTocReader(archive);
+                    RegisterVfs(ioChunkToc);
+                }
+                catch (Exception e)
+                {
+                    Log.Warning(e, "Failed to register on-demand TOC {FilePath}. Skipping file.", file.FullName);
+                }
             }
         }
     }
@@ -86,24 +101,36 @@ public class HybridFileProvider : AbstractVfsFileProvider
             var extension = file.FileName.SubstringAfter('.').ToLower();
             if (extension is "pak" or "utoc")
             {
-                RegisterVfs(file.FileName, (Stream[]) [file.GetStream()],
-                    name => new FStreamArchive(name,
-                        manifest.Files.First(subFile => subFile.FileName.Equals(name)).GetStream()));
+                try
+                {
+                    RegisterVfs(file.FileName, (Stream[]) [file.GetStream()],
+                        name => new FStreamArchive(name,
+                            manifest.Files.First(subFile => subFile.FileName.Equals(name)).GetStream()));
+                }
+                catch (Exception e)
+                {
+                    Log.Warning(e, "Failed to register manifest VFS file {FilePath}. Skipping file.", file.FileName);
+                }
             }
 
             if (extension is "uondemandtoc")
             {
-                
-                var targetPath = Path.Combine(targetCacheDirectory, file.FileName.SubstringAfterLast("/"));
-                if (!File.Exists(targetPath))
+                try
                 {
-                    using var fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
-                    file.GetStream().CopyTo(fileStream);
+                    var targetPath = Path.Combine(targetCacheDirectory, file.FileName.SubstringAfterLast("/"));
+                    if (!File.Exists(targetPath))
+                    {
+                        using var fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
+                        file.GetStream().CopyTo(fileStream);
+                    }
+
+                    var archive = new FByteArchive(targetPath, File.ReadAllBytes(targetPath), Versions);
+                    var ioChunkToc = new FOnDemandTocReader(archive);
+                    RegisterVfs(ioChunkToc);
                 }
-                
-                var archive = new FByteArchive(targetPath, File.ReadAllBytes(targetPath), Versions);
-                var ioChunkToc = new IoChunkToc(archive);
-                RegisterVfs(ioChunkToc, OnDemandOptions);
+                catch (Exception e)
+                {
+                    Log.Warning(e, "Failed to register manifest on-demand TOC {FilePath}. Skipping file.", file.FileName);
             }
 
         }
